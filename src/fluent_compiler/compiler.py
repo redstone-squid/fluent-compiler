@@ -304,7 +304,8 @@ def messages_to_module(
 
     def plural_form_for_number(number: NumberType) -> str | None:
         try:
-            return plural_form_for_number_main(number)
+            operand = number.plural_operand() if isinstance(number, FluentNumber) else number
+            return plural_form_for_number_main(operand)
         except TypeError:
             # This function can legitimately be passed strings if we incorrectly
             # guessed it was a CLDR category. So we ignore silently
@@ -410,7 +411,7 @@ def messages_to_module(
 
 
 def get_message_function_ast(
-    message_dict: Mapping[str, TermOrMessage]
+    message_dict: Mapping[str, TermOrMessage],
 ) -> Iterable[tuple[str, fl_ast.Attribute | fl_ast.Message]]:
     for msg_id, msg in message_dict.items():
         if isinstance(msg, fl_ast.Term):
@@ -892,9 +893,18 @@ def compile_expr_select_expression(
             # do a plural category comparison. So we have to do both. We can use equality
             # checks because they implicitly do a type check
             # > $key_tmp_name == $variant.key
-            condition1 = codegen.Equals(
-                block.scope.variable(key_tmp_name),
-                checked_cast(codegen.Expression, compile_expr(variant.key, block, compiler_env)),
+            condition1 = (
+                codegen.FunctionCall(
+                    "numeric_match",
+                    [block.scope.variable(key_tmp_name), codegen.String(variant.key.value)],
+                    {},
+                    block.scope,
+                )
+                if isinstance(variant.key, fl_ast.NumberLiteral) and "." in variant.key.value
+                else codegen.Equals(
+                    block.scope.variable(key_tmp_name),
+                    checked_cast(codegen.Expression, compile_expr(variant.key, block, compiler_env)),
+                )
             )
 
             if is_cldr_plural_form_key(variant.key):

@@ -137,6 +137,28 @@ class FluentNumber(FluentType):
                 pattern = self._apply_options(base_pattern)
                 return pattern.apply(self, locale, currency=self.options.currency, currency_digits=False)
 
+    def plural_operand(self) -> Decimal | float | int:
+        """Apply explicit digit options before selecting a CLDR plural category.
+
+        Selection uses decimal precision, independently of currency/percent display.
+        Preserve the original operand when no digit options were requested, including
+        the significant trailing zeroes of a Decimal supplied by the caller.
+        """
+        options = self.options
+        if all(
+            value is None
+            for value in (
+                options.minimumFractionDigits,
+                options.maximumFractionDigits,
+                options.minimumSignificantDigits,
+                options.maximumSignificantDigits,
+            )
+        ):
+            return self
+        locale = Locale.parse("en")
+        pattern = self._apply_options(locale.decimal_formats[None])
+        return Decimal(pattern.apply(self, locale, group_separator=False))
+
     def _apply_options(self, pattern: NumberPattern) -> NumberPattern:
         # We are essentially trying to copy the
         # https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NumberFormat
@@ -212,8 +234,7 @@ def merge_options(
     options_class: type[DateFormatOptions],
     base: DateFormatOptions | None,
     kwargs: dict[str, int | str | bool],
-) -> DateFormatOptions:
-    ...
+) -> DateFormatOptions: ...
 
 
 @overload
@@ -221,8 +242,7 @@ def merge_options(
     options_class: type[NumberFormatOptions],
     base: NumberFormatOptions | None,
     kwargs: dict[str, int | str | bool],
-) -> NumberFormatOptions:
-    ...
+) -> NumberFormatOptions: ...
 
 
 def merge_options(

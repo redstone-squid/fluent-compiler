@@ -14,6 +14,7 @@ __all__ = [
     "handle_argument_with_escaper",
     "handle_output_with_escaper",
     "handle_argument",
+    "numeric_match",
     "handle_output",
     "FluentCyclicReferenceError",
     "FluentReferenceError",
@@ -24,6 +25,7 @@ __all__ = [
 
 RETURN_TYPES: dict[str, type] = {
     "handle_argument": object,
+    "numeric_match": bool,
     "handle_output": str,
     "FluentReferenceError": FluentReferenceError,
     "FluentFormatError": FluentFormatError,
@@ -93,3 +95,8 @@ def handle_output(val: object, locale: Locale, errors: list[Exception]) -> str:
         # The only way for this branch to run is when functions return
         # objects of the wrong type.
         raise TypeError(f"Cannot handle object {val} of type {type(val).__name__}")
+
+
+def numeric_match(value: object, literal: str) -> bool:
+    """Compare exact numeric variants without converting their text to binary floats."""
+    return isinstance(value, (int, float, Decimal)) and Decimal(str(value)) == Decimal(literal)
